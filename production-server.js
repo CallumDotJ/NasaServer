@@ -94,43 +94,65 @@ app.get('/tap/sync', async (req, res) => {
 // ------------------
 // ML Prediction Endpoint
 // ------------------
-app.post('/predict', async (req, res) => {
+app.post('/ai/predict', async (req, res) => {
   try {
-    const { features } = req.body;
-    if (!features || !Array.isArray(features) || features.length !== 4)
-      return res.status(400).json({ error: 'Expected array of 4 numerical features.' });
-
-    const [period, radius, distance, temperature] = features.map(Number);
-    let score = 0;
-    let reasoning = [];
-
-    if (period >= 200 && period <= 500) { score += 0.3; reasoning.push('Favorable orbital period'); }
-    if (radius >= 0.5 && radius <= 2.0) { score += 0.3; reasoning.push('Earth-like size'); }
-    if (distance >= 0.8 && distance <= 1.5) { score += 0.25; reasoning.push('In habitable zone'); }
-    if (temperature >= 273 && temperature <= 373) { score += 0.15; reasoning.push('Temperature allows liquid water'); }
-
-    const confidence = Math.min(score, 1.0);
-    const prediction = confidence >= 0.5 ? 'CONFIRMED' : 'FALSE POSITIVE';
-
-    if (prediction === 'CONFIRMED') modelStats.confirmed_predictions++; 
-    else modelStats.rejected_predictions++;
-
-    modelStats.total_predictions++;
-    modelStats.total_confidence += confidence;
-    modelStats.prediction_history.push({
-      features, prediction, confidence: Math.round(confidence*100)/100,
-      timestamp: new Date().toISOString(),
-      reasoning: reasoning.join(', ')
+    console.log('🤖 AI prediction request:', req.body);
+    
+    const response = await fetch('https://exoplanetapi.onrender.com/api/predict', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(req.body)
     });
-    if (modelStats.prediction_history.length > 100) modelStats.prediction_history = modelStats.prediction_history.slice(-100);
 
-    await saveStats();
+    if (!response.ok) {
+      throw new Error(`AI API responded with status: ${response.status}`);
+    }
 
-    res.json({ prediction, confidence: Math.round(confidence*100)/100, reasoning: reasoning.join(', ') });
-
-  } catch (err) {
-    console.error('Prediction error:', err);
-    res.status(500).json({ error: 'Internal server error during prediction' });
+    const data = await response.json();
+    console.log('🤖 AI prediction response:', data);
+    
+    // Update statistics
+    modelStats.total_predictions += 1;
+    modelStats.api_calls_today += 1;
+    
+    if (data.confidence !== undefined) {
+      modelStats.total_confidence += data.confidence;
+      
+      // Track predictions (assuming >50% confidence means "confirmed")
+      if (data.confidence > 0.5) {
+        modelStats.confirmed_predictions += 1;
+      } else {
+        modelStats.rejected_predictions += 1;
+      }
+    }
+    
+    // Keep last 100 predictions for history
+    const prediction = {
+      timestamp: new Date().toISOString(),
+      input: req.body,
+      output: data,
+      confidence: data.confidence || 0
+    };
+    
+    modelStats.prediction_history.unshift(prediction);
+    if (modelStats.prediction_history.length > 100) {
+      modelStats.prediction_history = modelStats.prediction_history.slice(0, 100);
+    }
+    
+    // Save stats asynchronously (don't wait)
+    saveStats();
+    
+    res.json(data);
+    
+  } catch (error) {
+    console.error('❌ AI API Error:', error.message);
+    res.status(500).json({ 
+      error: 'AI prediction failed', 
+      details: error.message 
+    });
   }
 });
 
