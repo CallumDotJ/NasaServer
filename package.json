@@ -1,19 +1,11 @@
 {
   "name": "nasa-exoplanet-web-app",
   "version": "1.0.0",
-  "description": "NASA Exoplanet Discovery Web Application - Full Stack Flutter Web + Node.js Backend",
   "main": "production-server.js",
   "scripts": {
     "start": "node production-server.js",
     "dev": "nodemon production-server.js",
-    "build": "flutter build web --release",
-    "build:dev": "flutter build web",
-    "serve": "npm run build && npm start",
-    "test": "flutter test",
-    "clean": "flutter clean",
-    "deps": "flutter pub get && npm install",
-    "railway:build": "flutter pub get && flutter build web --release",
-    "railway:start": "node production-server.js"
+    "build": "flutter build web --release"
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -24,17 +16,6 @@
     "nodemon": "^3.0.1"
   },
   "engines": {
-    "node": ">=16.0.0",
-    "npm": ">=8.0.0"
-  },
-  "keywords": [
-    "nasa",
-    "exoplanet",
-    "flutter",
-    "web",
-    "space",
-    "machine-learning"
-  ],
-  "author": "NASA Space Apps Team",
-  "license": "MIT"
+    "node": ">=18.0.0"
+  }
 }
